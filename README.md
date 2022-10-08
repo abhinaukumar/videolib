@@ -13,7 +13,7 @@ The VideoLIB library provides an easy API for common image and video processing 
 The usage examples provided below offer a glimpse into the degree to which VideoLIB simplifies video processing tasks.
 
 ## Iterating over a video framewise
-```
+```python
 from videolib import Video, standards
 
 with Video('sample_video_path.mp4', standard=standards.sRGB, mode='r') as video:
@@ -36,7 +36,7 @@ with Video('sample_video_path.mp4', standard=standards.sRGB, mode='r') as video:
 
 ## Simple conversion between encoded and raw formats
 
-```
+```python
 # MP4 -> YUV (encoded -> raw)
 with Video('sample_video_path.mp4', standard=standards.sRGB, mode='r') as in_video:
     with Video('sample_video_path.yuv', standard=standards.sRGB, mode='w') as out_video:
@@ -51,7 +51,7 @@ with Video('sample_video_path.yuv', standard=standards.sRGB, mode='r') as in_vid
 ```
 
 ## Comparing HDR videos using HDR-UCS aka Jzazbz 
-```
+```python
 from videolib.cvt_color import bgr2hdrucs
 
 # Seamlessly compare HDR videos that use different encoding functions.
@@ -70,12 +70,12 @@ with Video('video1.yuv', standards.rec_2100_pq, 'r') as v1:
 To use VideoLIB, you will need Python >= 3.7.0. In addition, using virtual environments such as `virtualenv` or `conda` is recommended. The code has been tested on Linux and it is expected to be compatible with Unix/MacOS platforms.
 
 ## Creating a virtual environment
-```
+```bash
 python3 -m virtualenv .venv/
 source .venv/bin/activate
 ```
 ## Install preqrequisites and VideoLIB
-```
+```bash
 pip install -r requirements.txt
 pip install .
 ```
