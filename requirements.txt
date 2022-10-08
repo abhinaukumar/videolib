@@ -1,0 +1,4 @@
+# Python requirements file.
+numpy
+scikit-video
+matplotlib
