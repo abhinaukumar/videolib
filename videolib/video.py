@@ -367,8 +367,8 @@ class Video:
             warn('out_dict is only used when mode is \'w\' and format is \'encoded\'. Ignoring.')
 
         self.out_dict = {}
-        self.out_dict = out_dict.pop('-vcodec', 'libx264')
-        self.out_dict = out_dict.pop('-crf', '0')
+        self.out_dict['-vcodec'] = out_dict.pop('-vcodec', 'libx264')
+        self.out_dict['-crf'] = out_dict.pop('-crf', '0')
 
         if len(out_dict) != 0:
             warn('Only \'-vcodec\' and \'-crf\' options are supported in out_dict. Ignoring others.')
