@@ -4,7 +4,7 @@ setup(
     name='videolib',
     author='Abhinau Kumar',
     author_email='ab.kumr98@gmail.com',
-    version='0.1.0',
+    version='0.1.1',
     url='https://github.com/abhinaukumar/videolib',
     description='Package for easy Video IO and color conversion in Python.',
     install_requires=['numpy', 'scikit-video', 'matplotlib'],
