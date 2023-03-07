@@ -91,7 +91,7 @@ class CircularBuffer:
         self._iter_index += 1
         return item
 
-    def top(self) -> Any:
+    def back(self) -> Any:
         '''
         Get top element of circular buffer.
         '''
