@@ -95,11 +95,22 @@ class CircularBuffer:
         '''
         Get top element of circular buffer.
         '''
+        if self.isempty():
+            raise IndexError('Empty buffer has no back')
         return self._buf[self._top_index]
 
+    def front(self) -> Any:
+        '''
+        Get top element of circular buffer.
+        '''
+        if self.isempty():
+            raise IndexError('Empty buffer has no front')
+        return self._buf[(self._top_index+1) % self.buf_size]
     def center(self) -> Any:
         '''
         Get center element of circular buffer.
         '''
+        if self.isempty():
+            raise IndexError('Empty buffer has no center')
         center_index = (self._top_index + self.buf_size//2 + 1) % self.buf_size
         return self._buf[center_index]
