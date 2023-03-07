@@ -21,7 +21,7 @@ class CircularBuffer:
             raise ValueError('Buffer size must be positive')
         self.buf_size: int = buf_size
         self._buf: List = []
-        self._top_index: int = -1
+        self._back_index: int = -1
 
     def isempty(self) -> bool:
         '''
@@ -40,8 +40,8 @@ class CircularBuffer:
             warnings.warn('Appending to empty buffer. Filling with given value')
             self.fill(item)
         else:
-            self._top_index = (self._top_index + 1) % self.buf_size
-            self._buf[self._top_index] = copy.copy(item)
+            self._back_index = (self._back_index + 1) % self.buf_size
+            self._buf[self._back_index] = copy.copy(item)
 
     def fill(self, item: Any) -> None:
         '''
@@ -53,14 +53,14 @@ class CircularBuffer:
         self.clear()
         for i in range(self.buf_size):
             self._buf.append(copy.copy(item))
-        self._top_index = self.buf_size - 1
+        self._back_index = self.buf_size - 1
 
     def clear(self) -> None:
         '''
         Clear circular buffer.
         '''
         self._buf.clear()
-        self._top_index = -1
+        self._back_index = -1
 
     def check_append(self, item: Any) -> None:
         '''
@@ -87,19 +87,30 @@ class CircularBuffer:
         '''
         if self._iter_index == self.buf_size:
             raise StopIteration
-        item = self._buf[self._top_index - self._iter_index]
+        item = self._buf[self._back_index - self._iter_index]
         self._iter_index += 1
         return item
 
-    def top(self) -> Any:
+    def back(self) -> Any:
         '''
         Get top element of circular buffer.
         '''
-        return self._buf[self._top_index]
+        if self.isempty():
+            raise IndexError('Empty buffer has no back')
+        return self._buf[self._back_index]
 
+    def front(self) -> Any:
+        '''
+        Get top element of circular buffer.
+        '''
+        if self.isempty():
+            raise IndexError('Empty buffer has no front')
+        return self._buf[(self._back_index+1) % self.buf_size]
     def center(self) -> Any:
         '''
         Get center element of circular buffer.
         '''
-        center_index = (self._top_index + self.buf_size//2 + 1) % self.buf_size
+        if self.isempty():
+            raise IndexError('Empty buffer has no center')
+        center_index = (self._back_index + self.buf_size//2 + 1) % self.buf_size
         return self._buf[center_index]
