@@ -6,14 +6,9 @@ import copy
 class CircularBuffer:
     '''
     Class defining a circular buffer.
-
-    Args:
-        buf_size (int): Size of the circular buffer.
     '''
     def __init__(self, buf_size: int) -> None:
         '''
-        Initializer.
-
         Args:
             buf_size: Size of the buffer
         '''
@@ -26,6 +21,9 @@ class CircularBuffer:
     def isempty(self) -> bool:
         '''
         Check if buffer is empty.
+
+        Returns:
+            Flag denoting if buffer is empty.
         '''
         return len(self._buf) == 0
 
@@ -106,6 +104,7 @@ class CircularBuffer:
         if self.isempty():
             raise IndexError('Empty buffer has no front')
         return self._buf[(self._back_index+1) % self.buf_size]
+
     def center(self) -> Any:
         '''
         Get center element of circular buffer.

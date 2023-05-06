@@ -1,4 +1,4 @@
-from typing import Tuple, Callable
+from typing import Tuple, Callable, Dict
 import warnings
 from dataclasses import dataclass
 
@@ -9,24 +9,34 @@ from . import nonlinearities
 class Standard:
     '''
     Class to define an image/video standard.
-    The colorspace of the standard is define by its white point and primaries.
-    The standard also defines opto-electrical and electro-optical functions (OETF/EOTF)
     '''
-    name: str
-    white_xy: Tuple[float, float]
-    red_xy: Tuple[float, float]
-    green_xy: Tuple[float, float]
-    blue_xy: Tuple[float, float]
-    linear_range: float
-    oetf: Callable
-    eotf: Callable
+    name: str  #: Name of the standard
+    white_xy: Tuple[float, float]  #: White point in CIE xy format
+    red_xy: Tuple[float, float]  #: Red primary in CIE xy format
+    green_xy: Tuple[float, float]  #: Green primary in CIE xy format
+    blue_xy: Tuple[float, float]  #: Blue primary in CIE xy format
+    linear_range: float  #: Linear light value range
+    oetf: Callable  #: Opto-Electrical (or as appropriate, inverse Electro-Optical) Transfer Function
+    eotf: Callable  #: Electro-Optical Transfer Function
 
     @property
-    def primaries(self):
+    def primaries(self) -> Dict[str, Tuple[float, float]]:
+        '''
+        Color primaries of the standard
+
+        Returns:
+            Dict[str, Tuple[float, float]]: Dictionary of RGB primaries and white point of the standard.
+        '''
         return {'white': self.white_xy, 'red': self.red_xy, 'green': self.green_xy, 'blue': self.blue_xy}
 
     @property
-    def range(self):
+    def range(self) -> int:
+        '''
+        Non-linear encoded range
+
+        Returns:
+            int: Range of non-linear encoded values. Equal to :math:`2^{\\text{bitdepth}}-1`.
+        '''
         if self in low_bitdepth_standards:
             return (1 << 8) - 1
         elif self in high_bitdepth_standards:
@@ -36,7 +46,7 @@ class Standard:
             return 1
             # raise ValueError('Cannot find range for this standard')
 
-
+#: The sRGB standard (Recommended default)
 sRGB = Standard(
     name='sRGB',
     white_xy=(0.3127, 0.3290),
@@ -44,6 +54,7 @@ sRGB = Standard(
     oetf=nonlinearities.oetf_dict['sRGB'], eotf=nonlinearities.eotf_dict['sRGB'], linear_range=100
 )
 
+#: The ITU Rec.709 standard
 rec_709 = Standard(
     name='Rec.709',
     white_xy=(0.3127, 0.3290),
@@ -51,6 +62,7 @@ rec_709 = Standard(
     oetf=nonlinearities.oetf_dict['rec.709'], eotf=nonlinearities.eotf_dict['rec.709'], linear_range=100
 )
 
+#: The ITU Rec.2020 UHD standard
 rec_2020 = Standard(
     name='Rec.2020',
     white_xy=(0.3127, 0.3290),
@@ -58,6 +70,7 @@ rec_2020 = Standard(
     oetf=nonlinearities.oetf_dict['rec.2020'], eotf=nonlinearities.eotf_dict['rec.2020'], linear_range=100
 )
 
+#: The ITU Rec.2100 standard using Perceptual Quantizer encoding
 rec_2100_pq = Standard(
     name='Rec.2100.PQ',
     white_xy=(0.3127, 0.3290),
@@ -65,6 +78,7 @@ rec_2100_pq = Standard(
     oetf=nonlinearities.oetf_dict['pq'], eotf=nonlinearities.eotf_dict['pq'], linear_range=10000
 )
 
+#: The ITU Rec.2100 standard using Hybrid Log-Gamma encoding
 rec_2100_hlg = Standard(
     name='Rec.2100.HLG',
     white_xy=(0.3127, 0.3290),
@@ -72,6 +86,7 @@ rec_2100_hlg = Standard(
     oetf=nonlinearities.oetf_dict['hlg'], eotf=nonlinearities.eotf_dict['hlg'], linear_range=1000
 )
 
+#: The Radiance HDR format
 radiance_hdr = Standard(
     name='RadianceHDR',
     white_xy=(0.3333, 0.3333),
@@ -79,6 +94,7 @@ radiance_hdr = Standard(
     oetf=nonlinearities.oetf_dict['sRGB'], eotf=nonlinearities.eotf_dict['sRGB'], linear_range=None  # Peak luminance not defined
 )
 
+#: List of supported standards
 supported_standards = [
     sRGB,
     rec_709,
@@ -87,11 +103,13 @@ supported_standards = [
     rec_2100_hlg
 ]
 
+#: List of 8-bit standards
 low_bitdepth_standards = [
     sRGB,
     rec_709
 ]
 
+#: List of 10-bit standards
 high_bitdepth_standards = [
     rec_2020,
     rec_2100_pq,

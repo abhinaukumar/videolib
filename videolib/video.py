@@ -1,5 +1,5 @@
 import os
-from typing import Any, BinaryIO, Dict, Optional, Union
+from typing import Any, BinaryIO, Dict, Tuple, Optional, Union
 from warnings import warn
 
 import numpy as np
@@ -13,20 +13,9 @@ _datatypes = ['rgb', 'linear_rgb', 'bgr', 'linear_bgr', 'yuv', 'linear_yuv', 'xy
 
 class Frame:
     '''
-    Class defining a frame, either of a video or an image.
-
-    Args:
-        standard (standards.Standard): Color standard to which the data conforms.
-        hasdata (bool): Flag denoting whether the frame has been assigned data.
-        quantization (int): Value to which data will be quantized and scaled back to original range.
-        dither (bool): Flag denoting whether dithering must be applied after quantization.
-        rgb (np.ndarray): If hasdata is True, contains the data in non-linear RGB format.
-        bgr (np.ndarray): If hasdata is True, contains the data in non-linear BGR format.
-        yuv (np.ndarray): If hasdata is True, contains the data in non-linear YUV format.
-        linear_rgb (np.ndarray): If hasdata is True, contains the data in linear RGB format.
-        linear_bgr (np.ndarray): If hasdata is True, contains the data in linear BGR format.
-        linear_yuv (np.ndarray): If hasdata is True, contains the data in linear YUV format.
-        xyz (np.ndarray): If hasdata is True, contains the data in tristimulus XYZ format.
+    Class defining a frame, either of a video or an image. 
+    Supported native color representations: :code:`rgb`, :code:`linear_rgb`, :code:`bgr`, :code:`linear_bgr`, :code:`yuv`, :code:`linear_yuv`, :code:`xyz`. 
+    Access as :code:`frame.<color_space>`. For all others, use the :obj:`~videolib.cvt_color` submodule.
     '''
     def __init__(
         self,
@@ -68,17 +57,26 @@ class Frame:
             self.__dict__['_' + datatype] = None
 
     @property
-    def primaries(self):
+    def primaries(self) -> Dict[str, Tuple[float, float]]:
+        '''
+        Color primaries of the Frame's standard
+        '''
         return self.standard.primaries
 
     @property
-    def width(self):
+    def width(self) -> int:
+        '''
+        Width of the Frame
+        '''
         if self.hasdata:
             return self.yuv.shape[1]
         raise AttributeError('Width is not defined when frame has no data')
 
     @property
-    def height(self):
+    def height(self) -> int:
+        '''
+        Height of the Frame
+        '''
         if self.hasdata:
             return self.yuv.shape[0]
         raise AttributeError('Height is not defined when frame has no data')
@@ -93,7 +91,7 @@ class Frame:
             img: 1-channel image, possibly with extra dimensions.
 
         Returns:
-            np.ndarray: 1-channel image with no extra dimensions.
+            1-channel image with no extra dimensions.
 
         Raises:
             ValueError: If img cannot be squeezed to 2 dimensions.
@@ -123,7 +121,7 @@ class Frame:
             img: 3-channel image, possibly with extra dimensions.
 
         Returns:
-            np.ndarray: 3-channel image with no extra dimensions.
+            3-channel image with no extra dimensions.
 
         Raises:
             ValueError: If img cannot be squeezed to 3 dimensions and channels.
@@ -156,7 +154,7 @@ class Frame:
             channels: Number of channels in the output image.
 
         Returns:
-            np.ndarray: Lifted image.
+            Lifted image.
         '''
         img = Frame._assert_or_make_1channel(img)
         return np.tile(np.expand_dims(img, -1), [1, 1, channels])
@@ -243,13 +241,13 @@ class Frame:
 
     def quantize(self, value: Union[int, np.ndarray]) -> Union[int, np.ndarray]:
         '''
-        Quantize value to have `quantization` number of levels, while occupying the same input range.
+        Quantize value to have :code:`quantization` number of levels, while occupying the same input range.
 
         Args:
             value: Value to be quantized.
 
         Returns:
-            Union[int, np.ndarray]: Quantized value, if `quantization` attribute is specified.
+            Union[int, np.ndarray]: Quantized value, if :code:`quantization` attribute is specified.
         '''
         if self.quantization is not None:
             quant_value = np.round(value / self._quantization_step)
@@ -266,9 +264,7 @@ class Frame:
 
         Args:
             interactive: Run matplotlib in interactive mode.
-
-        Kwargs:
-            Passed directly to imshow.
+            kwargs: Passed directly to :obj:`~matplotlib.pyplot.imshow`.
         '''
         import matplotlib.pyplot as plt
         if interactive:
@@ -280,19 +276,7 @@ class Frame:
 
 class Video:
     '''
-    Class defining a video. Reads Frames from a YUV file on the disk
-
-    Args:
-        file_path (str): Path to file on the disk.
-        standard (standards.Standard): Color standard to which the data conforms.
-        mode (str): Read/Write mode. Must be one of 'r' or 'w'.
-        width (int): Width of each frame of the video.
-        height (int): Height of each frame of the video.
-        num_frames (int): Number of frames in the video.
-        format (str): Raw/encoded format of the video.
-        quantization (int): Value to which data will be quantized and scaled back to original range.
-        dither (bool): Flag denoting whether dithering must be applied after quantization.
-        out_dict (Dict): Dictionary of \'-vodec\' and/or \'-crf\' parameters to pass to FFmpegWriter when writing encoded videos.
+    Class defining a video. Reads/writes :obj:`Frame` objects to/from a file on the disk
     '''
     def __init__(
         self,
@@ -519,6 +503,12 @@ class Video:
         self.num_frames += 1
 
     def write_rgb_frame(self, rgb: np.ndarray) -> None:
+        '''
+        Adds RGB frame array to file on disk.
+
+        Args:
+            yuv: YUV data to be written.
+        '''
         if self.mode == 'r':
             raise OSError('Cannot write RGB frame in read mode.')
         if self.format == 'raw':
