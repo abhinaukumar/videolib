@@ -8,7 +8,16 @@ from . import utils
 
 # Helper functions to create and apply transfer matrices
 # Calculating transfer matrices from BGR to YUV based on given transfer coefficients
-def get_bgr2yuv_transfer_mat(standard) -> np.ndarray:
+def get_bgr2yuv_transfer_mat(standard: standards.Standard) -> np.ndarray:
+    '''
+    Calculates conversion matrix from BGR to YUV
+
+    Args:
+        standard: Standard for which matrix is to be returned
+
+    Returns:
+        3x3 conversion matrix
+    '''
     if standard.name in ['sRGB', 'Rec.709']:
         kb, kg, kr = 0.0722, 0.7152, 0.2126
     else:
@@ -19,7 +28,16 @@ def get_bgr2yuv_transfer_mat(standard) -> np.ndarray:
 # Calculating transfer matrices from linearized BGR to XYZ based on the color primaries of the BGR space.
 # For example, color primaries vary between Rec. 709 and Rec. 2020
 # Ref: http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
-def get_bgr2xyz_transfer_mat(standard) -> np.ndarray:
+def get_bgr2xyz_transfer_mat(standard: standards.Standard) -> np.ndarray:
+    '''
+    Calculates conversion matrix from BGR to tristimulus XYZ
+
+    Args:
+        standard: Standard for which matrix is to be returned
+
+    Returns:
+        3x3 conversion matrix
+    '''
     xw, yw = standard.white_xy
     xb, yb = standard.blue_xy
     xg, yg = standard.green_xy
@@ -49,7 +67,7 @@ def yuv2linear_yuv(yuv: np.ndarray, standard: standards.Standard, range: Optiona
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: Linear YUV array of shape (R, C, 3)
+        Linear YUV array of shape (R, C, 3)
     '''
     if range is None:
         range = standard.range
@@ -69,7 +87,7 @@ def yuv2bgr(yuv: np.ndarray, standard: standards.Standard, range: Optional[Union
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: BGR array of shape (R, C, 3)
+        BGR array of shape (R, C, 3)
     '''
     if range is None:
         range = standard.range
@@ -92,7 +110,7 @@ def yuv2linear_bgr(yuv: np.ndarray, standard: standards.Standard, range: Optiona
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: Linear BGR array of shape (R, C, 3)
+        Linear BGR array of shape (R, C, 3)
     '''
     bgr = yuv2bgr(yuv, standard, range)
     if range is None:
@@ -112,7 +130,7 @@ def yuv2rgb(yuv: np.ndarray, standard: standards.Standard, range: Optional[Union
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: RGB array of shape (R, C, 3)
+        RGB array of shape (R, C, 3)
     '''
     if range is None:
         range = standard.range
@@ -131,7 +149,7 @@ def yuv2linear_rgb(yuv: np.ndarray, standard: standards.Standard, range: Optiona
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: Linear RGB array of shape (R, C, 3)
+        Linear RGB array of shape (R, C, 3)
     '''
     rgb = yuv2rgb(yuv, standard, range)
     if range is None:
@@ -161,7 +179,7 @@ def yuv2xyz(yuv: np.ndarray, standard: standards.Standard, range: Optional[Union
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: XYZ array of shape (R, C, 3)
+        XYZ array of shape (R, C, 3)
     '''
     if range is None:
         range = standard.range
@@ -183,7 +201,7 @@ def linear_yuv2yuv(linear_yuv: np.ndarray, standard: standards.Standard, range: 
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: YUV array of shape (R, C, 3)
+        YUV array of shape (R, C, 3)
     '''
     if range is None:
         range = standard.range
@@ -201,7 +219,7 @@ def bgr2yuv(bgr: np.ndarray, standard: standards.Standard, range: Optional[Union
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: YUV array of shape (R, C, 3)
+        YUV array of shape (R, C, 3)
     '''
     if range is None:
         range = standard.range
@@ -223,7 +241,7 @@ def linear_bgr2yuv(linear_bgr: np.ndarray, standard: standards.Standard, range: 
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: YUV array of shape (R, C, 3)
+        YUV array of shape (R, C, 3)
     '''
     if range is None:
         range = standard.range
@@ -243,7 +261,7 @@ def rgb2yuv(rgb: np.ndarray, standard: standards.Standard, range: Optional[Union
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: RGB array of shape (R, C, 3)
+        RGB array of shape (R, C, 3)
     '''
     if range is None:
         range = standard.range
@@ -263,7 +281,7 @@ def linear_rgb2yuv(linear_rgb: np.ndarray, standard: standards.Standard, range: 
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: YUV array of shape (R, C, 3)
+        YUV array of shape (R, C, 3)
     '''
     if range is None:
         range = standard.range
@@ -284,7 +302,7 @@ def xyz2yuv(xyz: np.ndarray, standard: standards.Standard, range: Optional[Union
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: YUV array of shape (R, C, 3)
+        YUV array of shape (R, C, 3)
     '''
     if range is None:
         range = standard.range
@@ -307,7 +325,7 @@ def bgr2xyz(bgr: np.ndarray, standard: standards.Standard, range: Optional[Union
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: XYZ array of shape (R, C, 3)
+        XYZ array of shape (R, C, 3)
     '''
     if range is None:
         range = standard.range
@@ -330,7 +348,7 @@ def xyz2bgr(xyz: np.ndarray, standard: standards.Standard, range: Optional[Union
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: BGR array of shape (R, C, 3)
+        BGR array of shape (R, C, 3)
     '''
     if range is None:
         range = standard.range
@@ -352,7 +370,7 @@ def xyz2lab(xyz: np.ndarray, standard: standards.Standard, range: Optional[Union
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: La*b* array of shape (R, C, 3)
+        La*b* array of shape (R, C, 3)
     '''
     def f(x: np.ndarray) -> np.ndarray:
         lim = (6/29)**3
@@ -380,7 +398,7 @@ def lab2xyz(lab: np.ndarray, standard: standards.Standard, range: Optional[Union
         range: Range of pixel values (Default: None - inferred from standard).
 
     Returns:
-        np.ndarray: Tristimulus XYZ array of shape (R, C, 3)
+        Tristimulus XYZ array of shape (R, C, 3)
     '''
     def inv_f(x: np.ndarray) -> np.ndarray:
         lim = (6/29)
@@ -415,7 +433,7 @@ def _bgr2ciecam_generic(bgr: np.ndarray, standard: standards.Standard, cat: Call
         three_channel: Values to be returned. Must be None (all values), 'chroma_euclidean', 'color_euclidean', or 'ucs_color_euclidean'.
 
     Returns:
-        Union[np.ndarray, Tuple]: Array or tuple of CIECAM outputs.
+        Array or tuple of CIECAM outputs.
     '''
     assert env_setting in constants.envs, 'Invalid choice of environment'
     assert light_setting in constants.lightintensities, 'Invalid choice of light intensity'
@@ -535,14 +553,14 @@ def bgr2ciecam02(bgr: np.ndarray, standard: standards.Standard, env_setting: str
         three_channel: Values to be returned. Must be None (all values), 'chroma_euclidean', 'color_euclidean', or 'ucs_color_euclidean'.
 
     Returns:
-        Union[np.ndarray, Tuple]: Array or tuple of CIECAM02 outputs.
+        Array or tuple of CIECAM02 outputs.
     '''
     return _bgr2ciecam_generic(bgr, standard, color_adaptation.cat02, env_setting, light_setting, bg_setting, three_channel)
 
 
 # Color conversion from BGR to an HDR uniform color space (aka Jzazbz)
 # Ref: "Perceptually uniform color space for image signals including high dynamic range and wide gamut", M. Safdar, G. Cui, Y. J. Kim, and M. R. Luo
-def bgr2hdrucs(bgr: np.ndarray, standard: standards.Standard, three_channel: Union[str, None] = 'euclidean') -> Union[np.ndarray, Tuple]:
+def bgr2hdrucs(bgr: np.ndarray, standard: standards.Standard, three_channel: Optional[str] = 'euclidean') -> Union[np.ndarray, Tuple]:
     '''
     Converts BGR to uniform color space designed for HDR (aka Jzazbz).
 
@@ -552,7 +570,7 @@ def bgr2hdrucs(bgr: np.ndarray, standard: standards.Standard, three_channel: Uni
         three_channel: Values to be returned. must be none (all values), 'chroma_euclidean', 'color_euclidean', or 'ucs_color_euclidean'.
 
     Returns:
-        Union[np.ndarray, Tuple]: Array or tuple of HDR-UCS outputs.
+        Array or tuple of HDR-UCS outputs.
     '''
     # Setting luminance adaptation parameters
     d = -0.56
@@ -591,7 +609,7 @@ def bgr2hdrucs(bgr: np.ndarray, standard: standards.Standard, three_channel: Uni
 
 # Color conversion from BGR to CAM16
 # Ref "Comprehensive color solutions: CAM16, CAT16, and CAM16-UCS", C. Li, Z. Li, Z. Wang, Y. Xu, M. R. Luo, G. Cui, M. Melgosa, M. H. Brill, and M. Pointer
-def bgr2cam16(bgr, standard, env_setting='average', light_setting='default', bg_setting='default', three_channel=None):
+def bgr2cam16(bgr: np.ndarray, standard: standards.Standard, env_setting: str = 'average', light_setting: str = 'default', bg_setting: str = 'default', three_channel: Optional[str] = None) -> Union[np.ndarray, Tuple]:
     '''
     Converts BGR to CAM16 color space.
 
@@ -604,7 +622,7 @@ def bgr2cam16(bgr, standard, env_setting='average', light_setting='default', bg_
         three_channel: Values to be returned. Must be None (all values), 'chroma_euclidean', 'color_euclidean', or 'ucs_color_euclidean'.
 
     Returns:
-        Union[np.ndarray, Tuple]: Array or tuple of CAM16 outputs.
+        Array or tuple of CAM16 outputs.
     '''
     return _bgr2ciecam_generic(bgr, standard, color_adaptation.cat16, env_setting, light_setting, bg_setting, three_channel)
 
@@ -619,7 +637,7 @@ def linear_rgb2hsv(linear_rgb: np.ndarray, standard: standards.Standard) -> np.n
         standard: Color standard to which the data conforms.
 
     Returns:
-        np.ndarray: HSV data
+        HSV data
     '''
     x_max = linear_rgb.max(-1)
     x_min = linear_rgb.min(-1)
@@ -652,7 +670,7 @@ def hsv2linear_rgb(hsv: np.ndarray, standard: standards.Standard) -> np.ndarray:
         standard: Color standard to which the data conforms.
 
     Returns:
-        np.ndarray: Linear RGB data.
+        Linear RGB data.
     '''
     def k(n):
         return np.mod(n + hsv[..., 0]/60, 6)
@@ -667,7 +685,7 @@ def hsv2linear_rgb(hsv: np.ndarray, standard: standards.Standard) -> np.ndarray:
 # Utility function to get conversion function from source to destination color spaces
 def get_conversion_function(src: str, dest: str) -> Callable:
     '''
-    Returns color conversion function from source to destination color space.
+    Selects color conversion function based on source and destination color spaces.
 
     Args:
         src: Source color space.

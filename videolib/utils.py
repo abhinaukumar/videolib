@@ -33,6 +33,6 @@ def apply_transfer_mat(img: np.ndarray, transfer_mat: np.ndarray) -> np.ndarray:
         transfer_mat: Transfer matrix to be applied.
 
     Returns:
-        np.ndarray: Transformed data.
+        Transformed data.
     '''
     return img @ transfer_mat.T
