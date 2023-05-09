@@ -9,3 +9,4 @@ jupyter
 matplotlib
 numpy
 scipy
+scikit-video
