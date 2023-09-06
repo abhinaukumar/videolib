@@ -1,4 +1,4 @@
-from typing import Tuple, Callable, Dict
+from typing import Tuple, Callable, Dict, Union
 import warnings
 from dataclasses import dataclass
 
