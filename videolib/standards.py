@@ -40,7 +40,7 @@ class Standard:
         Returns:
             int: Range of non-linear encoded values. Equal to :math:`2^{\\text{bitdepth}}-1` if integer dtype, else 1.0.
         '''
-        if issubclass(np.dtype(self.dtype), np.floating):
+        if issubclass(np.dtype(self.dtype).type, np.floating):
             return 1.0
         return (1 << self.bitdepth) - 1
 
