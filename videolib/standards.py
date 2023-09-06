@@ -2,6 +2,7 @@ from typing import Tuple, Callable, Dict, Union
 import warnings
 from dataclasses import dataclass
 
+import numpy as np
 from . import nonlinearities
 
 
