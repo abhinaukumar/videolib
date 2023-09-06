@@ -37,13 +37,6 @@ class Frame:
         self.dither: bool = dither
         self._base_datatype = 'yuv'  # Use non-linear YUV as the base datatype
 
-        if self.standard in standards.low_bitdepth_standards:
-            self._frame_dtype = np.uint8
-        elif self.standard in standards.high_bitdepth_standards:
-            self._frame_dtype = np.uint16
-        else:
-            raise ValueError('Bit depth unknown for {}'.format(self.standard.name))
-
         if self.quantization is None and self.dither is True:
             warn('Dithering is not applied when quantization is not applied.', RuntimeWarning)
         elif self.quantization is not None and (not isinstance(self.quantization, int) or self.quantization < 1):
@@ -315,14 +308,7 @@ class Video:
         self.quantization: int = quantization
         self.dither: bool = dither
 
-        if self.standard in standards.low_bitdepth_standards:
-            self._frame_dtype = np.uint8
-            self._frame_stride = 1.5
-        elif self.standard in standards.high_bitdepth_standards:
-            self._frame_dtype = np.uint16
-            self._frame_stride = 3
-        else:
-            raise ValueError('Bit depth unknown for {}'.format(self.standard.name))
+        self._frame_stride = 1.5 * np.dtype(self.standard).itemsize
 
         if self.quantization is None and self.dither is True:
             warn('Dithering is not applied when quantization is not applied.', RuntimeWarning)
@@ -342,7 +328,7 @@ class Video:
 
         if format not in ['encoded', 'raw']:
             raise ValueError('Invalid format. Must be one of \'encoded\' or \'raw\'.')
-        if self.standard in standards.high_bitdepth_standards and format != 'raw':
+        if self.standard.dtype != np.uint8 and format != 'raw':
             raise ValueError(f'Format \'{format}\' is not supported for videos of standard {self.standard.name}.')
         else:
             self.format = format
@@ -433,9 +419,9 @@ class Video:
         if self.format == 'raw':
             self._file_object.seek(int(self.width * self.height * frame_ind * self._frame_stride))
 
-            y1 = np.fromfile(self._file_object, self._frame_dtype, (self.width * self.height))
-            u1 = np.fromfile(self._file_object, self._frame_dtype, (self.width * self.height) >> 2)
-            v1 = np.fromfile(self._file_object, self._frame_dtype, (self.width * self.height) >> 2)
+            y1 = np.fromfile(self._file_object, self.standard.dtype, (self.width * self.height))
+            u1 = np.fromfile(self._file_object, self.standard.dtype, (self.width * self.height) >> 2)
+            v1 = np.fromfile(self._file_object, self.standard.dtype, (self.width * self.height) >> 2)
 
             y = np.reshape(y1, (self.height, self.width)).astype('float64')
             u = np.reshape(u1, (self.height >> 1, self.width >> 1)).repeat(2, axis=0).repeat(2, axis=1).astype('float64')
@@ -496,7 +482,7 @@ class Video:
         if self.format == 'raw':
             u_sub = (yuv[::2, ::2, 1] + yuv[1::2, ::2, 1] + yuv[1::2, 1::2, 1] + yuv[::2, 1::2, 1]) / 4
             v_sub = (yuv[::2, ::2, 2] + yuv[1::2, ::2, 2] + yuv[1::2, 1::2, 2] + yuv[::2, 1::2, 2]) / 4
-            yuv420 = np.concatenate([np.ravel(yuv[..., 0]), np.ravel(u_sub), np.ravel(v_sub)]).astype(self._frame_dtype)
+            yuv420 = np.concatenate([np.ravel(yuv[..., 0]), np.ravel(u_sub), np.ravel(v_sub)]).astype(self.standard.dtype)
             yuv420.tofile(self._file_object)
         elif self.format == 'encoded':
             self.write_rgb_frame(cvt_color.yuv2rgb(yuv))
@@ -515,7 +501,7 @@ class Video:
             yuv = cvt_color.rgb2yuv(rgb, self.standard)
             self.write_yuv_frame(yuv)
         else:
-            self._file_object.writeFrame(rgb.astype(self._frame_dtype))
+            self._file_object.writeFrame(rgb.astype(self.standard.dtype))
         self.num_frames += 1
 
     def write_frame(self, frame: Frame) -> None:
