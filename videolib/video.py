@@ -328,7 +328,7 @@ class Video:
 
         if format not in ['encoded', 'raw']:
             raise ValueError('Invalid format. Must be one of \'encoded\' or \'raw\'.')
-        if self.standard.dtype != np.uint8 and format != 'raw':
+        if np.dtype(self.standard.dtype).type != np.uint8 and format != 'raw':
             raise ValueError(f'Format \'{format}\' is not supported for videos of standard {self.standard.name}.')
         else:
             self.format = format
