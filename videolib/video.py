@@ -4,6 +4,7 @@ from warnings import warn
 
 import numpy as np
 import skvideo.io
+import imageio
 
 from . import cvt_color
 from . import standards
@@ -13,8 +14,8 @@ _datatypes = ['rgb', 'linear_rgb', 'bgr', 'linear_bgr', 'yuv', 'linear_yuv', 'xy
 
 class Frame:
     '''
-    Class defining a frame, either of a video or an image. 
-    Supported native color representations: :code:`rgb`, :code:`linear_rgb`, :code:`bgr`, :code:`linear_bgr`, :code:`yuv`, :code:`linear_yuv`, :code:`xyz`. 
+    Class defining a frame, either of a video or an image.
+    Supported native color representations: :code:`rgb`, :code:`linear_rgb`, :code:`bgr`, :code:`linear_bgr`, :code:`yuv`, :code:`linear_yuv`, :code:`xyz`.
     Access as :code:`frame.<color_space>`. For all others, use the :obj:`~videolib.cvt_color` submodule.
     '''
     def __init__(
@@ -84,7 +85,7 @@ class Frame:
             img: 1-channel image, possibly with extra dimensions.
 
         Returns:
-            1-channel image with no extra dimensions.
+            np.ndarray: 1-channel image with no extra dimensions.
 
         Raises:
             ValueError: If img cannot be squeezed to 2 dimensions.
@@ -114,7 +115,7 @@ class Frame:
             img: 3-channel image, possibly with extra dimensions.
 
         Returns:
-            3-channel image with no extra dimensions.
+            np.ndarray: 3-channel image with no extra dimensions.
 
         Raises:
             ValueError: If img cannot be squeezed to 3 dimensions and channels.
@@ -147,7 +148,7 @@ class Frame:
             channels: Number of channels in the output image.
 
         Returns:
-            Lifted image.
+            np.ndarray: Lifted image.
         '''
         img = Frame._assert_or_make_1channel(img)
         return np.tile(np.expand_dims(img, -1), [1, 1, channels])
@@ -317,17 +318,28 @@ class Video:
         elif self.quantization is not None and self.quantization > self.standard.range:
             raise ValueError('Quantization value must not exceed the range of the standard')
 
+        self._allowed_formats = ['raw', 'encoded', 'sdr_image', 'hdr_image']
+
         if format is None:
             ext = self.file_path.split('.')[-1]
             if ext == 'yuv':
                 format = 'raw'
             elif ext in ['mp4', 'mov', 'avi']:
                 format = 'encoded'
+            elif ext in ['jpg', 'png']:
+                format = 'sdr_image'
+                if self.standard not in standards.low_bitdepth_standards:
+                    raise ValueError('Extension \'{ext}\' can only be used with 8-bit standards.')
+            elif ext in ['hdr', 'exr']:
+                format = 'hdr_image'
+                if self.standard != standards.radiance_hdr:
+                    raise ValueError('Extension \'{ext}\' can only be used with RadianceHDR.')
             else:
-                raise ValueError('Format unknown for files of type \'{}\''.format(ext))
+                raise ValueError(f'Format unknown for files of type \'{ext}\'')
 
-        if format not in ['encoded', 'raw']:
-            raise ValueError('Invalid format. Must be one of \'encoded\' or \'raw\'.')
+        if format not in self._allowed_formats:
+            raise ValueError(f'Invalid format. Must be one of {self._allowed_formats}.')
+
         if np.dtype(self.standard.dtype).type != np.uint8 and format != 'raw':
             raise ValueError(f'Format \'{format}\' is not supported for videos of standard {self.standard.name}.')
         else:
@@ -350,6 +362,14 @@ class Video:
                 self._file_object = skvideo.io.FFmpegReader(file_path)
             elif self.mode == 'w':
                 self._file_object = skvideo.io.FFmpegWriter(file_path, outputdict=self.out_dict)
+        elif 'image' in self.format:
+            self._img = Frame(self.standard, self.quantization, self.dither)
+            rgb = imageio.imread(file_path).astype('float64')
+            if self.format == 'hdr_image':
+                rgb = (rgb - np.min(rgb)) / (np.max(rgb) - np.min(rgb))
+                self._img.linear_rgb = rgb
+            else:
+                self._img.rgb = rgb
 
         self.num_frames: int = 0
         if self.mode == 'r':
@@ -369,6 +389,10 @@ class Video:
                     self.height = height
                     self.width = width
                 self._file_frame_generator = self._file_object.nextFrame()
+            else:
+                self.num_frames = 1
+                self.width = self._img.width
+                self.height = self._img.height
 
     def reset(self) -> None:
         '''
@@ -430,6 +454,8 @@ class Video:
             frame.yuv = np.stack((y, u, v), axis=-1)
         elif self.format == 'encoded':
             frame.rgb = next(self._file_frame_generator).astype('float64')
+        else:
+            frame = self._img
         return frame
 
     def __getitem__(self, frame_ind: int) -> Frame:
@@ -491,9 +517,8 @@ class Video:
     def write_rgb_frame(self, rgb: np.ndarray) -> None:
         '''
         Adds RGB frame array to file on disk.
-
         Args:
-            yuv: YUV data to be written.
+            rgb: RGB data to be written.
         '''
         if self.mode == 'r':
             raise OSError('Cannot write RGB frame in read mode.')
@@ -543,4 +568,5 @@ class Video:
 
     # Close video file when exiting 'with' statement
     def __exit__(self, exc_type, exc_value, traceback):
-        self.close()
+        if self.format in ['raw', 'encoded']:
+            self.close()
