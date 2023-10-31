@@ -21,7 +21,7 @@ author = 'Abhinau Kumar'
 copyright = '2023, Abhinau Kumar Venkataramanan'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.2'
+release = '0.1.3'
 
 # -- General configuration ---------------------------------------------------
 
