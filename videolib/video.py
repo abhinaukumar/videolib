@@ -323,6 +323,8 @@ class Video:
         elif self.quantization is not None and self.quantization > self.standard.range:
             raise ValueError('Quantization value must not exceed the range of the standard')
 
+        self._range = 'Full'
+
         self._allowed_formats = ['raw', 'encoded', 'sdr_image', 'hdr_image']
 
         if format is None:
@@ -447,7 +449,7 @@ class Video:
         if self.bit_depth != 8:
             pix_fmt += f'{self.bit_depth}le'
 
-        self.video_range = v_track['colour_range']
+        self._range = v_track.get('colour_range', self._range)
 
         cmd = [
             'ffmpeg',
