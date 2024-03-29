@@ -2,3 +2,4 @@
 numpy
 scikit-video
 matplotlib
+imageio

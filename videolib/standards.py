@@ -142,3 +142,11 @@ standards_10bit = [
     rec_2100_pq,
     rec_2100_hlg
 ]
+
+_standards_dict = {standard.name: standard for standard in supported_standards}
+def get_standard(name: str) -> Standard:
+    try:
+        return _standards_dict[name]
+    except KeyError:
+        raise ValueError('Invalid standard name')
+

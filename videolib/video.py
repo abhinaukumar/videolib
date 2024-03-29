@@ -1,20 +1,26 @@
 import os
+import subprocess
+import datetime
+
 from typing import Any, BinaryIO, Dict, Tuple, Optional, Union
 from warnings import warn
+import json
 
 import numpy as np
 import skvideo.io
+import imageio
 
 from . import cvt_color
 from . import standards
 
 _datatypes = ['rgb', 'linear_rgb', 'bgr', 'linear_bgr', 'yuv', 'linear_yuv', 'xyz']
+TEMP_DIR = '/tmp'
 
 
 class Frame:
     '''
-    Class defining a frame, either of a video or an image. 
-    Supported native color representations: :code:`rgb`, :code:`linear_rgb`, :code:`bgr`, :code:`linear_bgr`, :code:`yuv`, :code:`linear_yuv`, :code:`xyz`. 
+    Class defining a frame, either of a video or an image.
+    Supported native color representations: :code:`rgb`, :code:`linear_rgb`, :code:`bgr`, :code:`linear_bgr`, :code:`yuv`, :code:`linear_yuv`, :code:`xyz`.
     Access as :code:`frame.<color_space>`. For all others, use the :obj:`~videolib.cvt_color` submodule.
     '''
     def __init__(
@@ -84,7 +90,7 @@ class Frame:
             img: 1-channel image, possibly with extra dimensions.
 
         Returns:
-            1-channel image with no extra dimensions.
+            np.ndarray: 1-channel image with no extra dimensions.
 
         Raises:
             ValueError: If img cannot be squeezed to 2 dimensions.
@@ -114,7 +120,7 @@ class Frame:
             img: 3-channel image, possibly with extra dimensions.
 
         Returns:
-            3-channel image with no extra dimensions.
+            np.ndarray: 3-channel image with no extra dimensions.
 
         Raises:
             ValueError: If img cannot be squeezed to 3 dimensions and channels.
@@ -147,7 +153,7 @@ class Frame:
             channels: Number of channels in the output image.
 
         Returns:
-            Lifted image.
+            np.ndarray: Lifted image.
         '''
         img = Frame._assert_or_make_1channel(img)
         return np.tile(np.expand_dims(img, -1), [1, 1, channels])
@@ -308,7 +314,7 @@ class Video:
         self.quantization: int = quantization
         self.dither: bool = dither
 
-        self._frame_stride = 1.5 * np.dtype(self.standard).itemsize
+        self._frame_stride = 1.5 * np.dtype(self.standard.dtype).itemsize
 
         if self.quantization is None and self.dither is True:
             warn('Dithering is not applied when quantization is not applied.', RuntimeWarning)
@@ -317,21 +323,31 @@ class Video:
         elif self.quantization is not None and self.quantization > self.standard.range:
             raise ValueError('Quantization value must not exceed the range of the standard')
 
+        self._range = 'Full'
+
+        self._allowed_formats = ['raw', 'encoded', 'sdr_image', 'hdr_image']
+
         if format is None:
             ext = self.file_path.split('.')[-1]
             if ext == 'yuv':
                 format = 'raw'
-            elif ext in ['mp4', 'mov', 'avi']:
+            elif ext in ['mp4', 'mov', 'avi', 'webm']:
                 format = 'encoded'
+            elif ext in ['jpg', 'png', 'bmp', 'tiff']:
+                format = 'sdr_image'
+                if self.standard not in standards.low_bitdepth_standards:
+                    raise ValueError('Extension \'{ext}\' can only be used with 8-bit standards.')
+            elif ext in ['hdr', 'exr']:
+                format = 'hdr_image'
+                if self.standard != standards.radiance_hdr:
+                    raise ValueError('Extension \'{ext}\' can only be used with RadianceHDR.')
             else:
-                raise ValueError('Format unknown for files of type \'{}\''.format(ext))
+                raise ValueError(f'Format unknown for files of type \'{ext}\'')
 
-        if format not in ['encoded', 'raw']:
-            raise ValueError('Invalid format. Must be one of \'encoded\' or \'raw\'.')
-        if np.dtype(self.standard.dtype).type != np.uint8 and format != 'raw':
-            raise ValueError(f'Format \'{format}\' is not supported for videos of standard {self.standard.name}.')
-        else:
-            self.format = format
+        if format not in self._allowed_formats:
+            raise ValueError(f'Invalid format. Must be one of {self._allowed_formats}.')
+
+        self.format = format
 
         if (self.mode == 'r' or self.format == 'raw') and len(out_dict) != 0:
             warn('out_dict is only used when mode is \'w\' and format is \'encoded\'. Ignoring.')
@@ -347,28 +363,99 @@ class Video:
             self._file_object: BinaryIO = open(file_path, '{}b'.format(self.mode))
         elif self.format == 'encoded':
             if self.mode == 'r':
-                self._file_object = skvideo.io.FFmpegReader(file_path)
+                self._decode_encoded_video()
+                self._file_object: BinaryIO = open(self._temp_path, 'rb')
             elif self.mode == 'w':
                 self._file_object = skvideo.io.FFmpegWriter(file_path, outputdict=self.out_dict)
+        elif 'image' in self.format:
+            self._img = Frame(self.standard, self.quantization, self.dither)
+            rgb = imageio.imread(file_path).astype('float64')
+            if self.format == 'hdr_image':
+                rgb = (rgb - np.min(rgb)) / (np.max(rgb) - np.min(rgb))
+                self._img.linear_rgb = rgb
+            else:
+                self._img.rgb = rgb
 
         self.num_frames: int = 0
         if self.mode == 'r':
             self._frames_loaded_from_next: int = 0
-            if self.format == 'raw':
-                self._file_object.seek(0, os.SEEK_END)
-                size_in_bytes = self._file_object.tell()
-                self.num_frames = size_in_bytes // int(self.width * self.height * self._frame_stride)
-                self._file_object.seek(0)
-                if self.width is None or self.height is None:
-                    raise ValueError('Must set values of width and height when reading a raw video.')
-            elif self.format == 'encoded':
-                (self.num_frames, height, width, _) = self._file_object.getShape()  # N x H x W x C
-                if (self.height is not None and height != self.height) or (self.width is not None and width != self.width):
-                    raise ValueError('Input width and height does not match video\'s dimensions.')
-                else:
-                    self.height = height
-                    self.width = width
-                self._file_frame_generator = self._file_object.nextFrame()
+            self._file_object.seek(0, os.SEEK_END)
+            size_in_bytes = self._file_object.tell()
+            self.num_frames = size_in_bytes // int(self.width * self.height * self._frame_stride)
+            self._file_object.seek(0)
+            if self.width is None or self.height is None:
+                raise ValueError('Must set values of width and height when reading a raw video.')
+            elif 'image' in self.format:
+                self.num_frames = 1
+                self.width = self._img.width
+                self.height = self._img.height
+
+    @property
+    def bit_depth(self) -> int:
+        return self.standard.bitdepth
+
+    @property
+    def _offset(self) -> float:
+        offset_dict = {
+            8: 16,
+            10: 64,
+        }
+        return offset_dict.get(self.bit_depth, 0) if self._range == 'Limited' else 0
+
+    @property
+    def _scale(self) -> float:
+        scale_dict = {
+            8: 255 / (235 - 16),
+            10: 1023 / (940 - 64),
+        }
+        return scale_dict.get(self.bit_depth, 1) if self._range == 'Limited' else 1
+
+    def _decode_encoded_video(self):
+        self._temp_path = os.path.join(TEMP_DIR, f'EncodedReader_temp_{self.file_path.replace("/", "_")}_' + '{0:%Y_%m_%d_%H_%M_%S}'.format(datetime.datetime.now()) + '.yuv')
+        json_string = subprocess.check_output(['mediainfo', '--Output=JSON', self.file_path], stdin=subprocess.DEVNULL)
+        d = json.loads(json_string)
+        v_track = None
+        for track in d['media']['track']:
+            if track['@type'] == 'Video':
+                v_track = track
+                break
+        if v_track is None:
+            raise ValueError(f'File {self.file_path} does not have a video track or MediaInfo returned unexpected output.')
+
+        width = int(v_track['Width'])
+        height = int(v_track['Height'])
+        rotation = float(v_track['Rotation'])
+        # Flip width and height if portrait mode
+        if rotation not in [0, 180, -180]:
+            width, height = height, width
+
+        if (self.height is not None and height != self.height) or (self.width is not None and width != self.width):
+            raise ValueError('Input width and height does not match video\'s dimensions.')
+        else:
+            self.height = height
+            self.width = width
+
+        bit_depth = int(v_track['BitDepth'])
+        if self.bit_depth != bit_depth:
+            raise ValueError('Video bit depth does not match standard\'s bitdepth')
+
+        self.bytes_per_pixel = 1.5 * np.ceil(self.bit_depth / 8)
+        pix_fmt = 'yuv420p'
+        if self.bit_depth != 8:
+            pix_fmt += f'{self.bit_depth}le'
+
+        self._range = v_track.get('colour_range', self._range)
+
+        cmd = [
+            'ffmpeg',
+            '-i', self.file_path,
+            '-c:v', 'rawvideo',
+            '-pix_fmt', pix_fmt,
+            '-y',
+            self._temp_path
+        ]
+
+        subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def reset(self) -> None:
         '''
@@ -416,20 +503,19 @@ class Video:
             raise ValueError('Encoded videos must be read sequentially.')
 
         frame = Frame(self.standard, self.quantization, self.dither)
-        if self.format == 'raw':
+        if self.format in ['raw', 'encoded']:
             self._file_object.seek(int(self.width * self.height * frame_ind * self._frame_stride))
-
             y1 = np.fromfile(self._file_object, self.standard.dtype, (self.width * self.height))
             u1 = np.fromfile(self._file_object, self.standard.dtype, (self.width * self.height) >> 2)
             v1 = np.fromfile(self._file_object, self.standard.dtype, (self.width * self.height) >> 2)
-
             y = np.reshape(y1, (self.height, self.width)).astype('float64')
             u = np.reshape(u1, (self.height >> 1, self.width >> 1)).repeat(2, axis=0).repeat(2, axis=1).astype('float64')
             v = np.reshape(v1, (self.height >> 1, self.width >> 1)).repeat(2, axis=0).repeat(2, axis=1).astype('float64')
-
-            frame.yuv = np.stack((y, u, v), axis=-1)
-        elif self.format == 'encoded':
-            frame.rgb = next(self._file_frame_generator).astype('float64')
+            yuv = np.stack((y, u, v), axis=-1)
+            # Normalize the pixel values based on the determined range
+            frame.yuv = (yuv - self._offset) * self._scale
+        else:
+            frame = self._img
         return frame
 
     def __getitem__(self, frame_ind: int) -> Frame:
@@ -443,9 +529,9 @@ class Video:
             Frame: Frame object containing the frame in YUV format.
         '''
         if self.mode == 'w':
-            raise OSError('Cannot index video in write mode.')
-        if self.format == 'encoded':
-            raise OSError('Cannot index encoded video.')
+            raise IndexError('Cannot index video in write mode.')
+        if self.format not in ['raw', 'encoded']:
+            raise IndexError(f'Cannot index {self.format} format.')
         if frame_ind >= self.num_frames or frame_ind < -self.num_frames:
             raise IndexError('Frame index out of range.')
 
@@ -491,9 +577,8 @@ class Video:
     def write_rgb_frame(self, rgb: np.ndarray) -> None:
         '''
         Adds RGB frame array to file on disk.
-
         Args:
-            yuv: YUV data to be written.
+            rgb: RGB data to be written.
         '''
         if self.mode == 'r':
             raise OSError('Cannot write RGB frame in read mode.')
@@ -543,4 +628,7 @@ class Video:
 
     # Close video file when exiting 'with' statement
     def __exit__(self, exc_type, exc_value, traceback):
-        self.close()
+        if self.format in ['raw', 'encoded']:
+            self.close()
+        if self.format == 'encoded' and self.mode == 'r':
+            os.remove(self._temp_path)

@@ -113,3 +113,11 @@ class CircularBuffer:
             raise IndexError('Empty buffer has no center')
         center_index = (self._back_index + self.buf_size//2 + 1) % self.buf_size
         return self._buf[center_index]
+
+
+    def __getitem__(self, index):
+        if self.isempty():
+            raise IndexError(f'Empty buffer.')
+        if index < 0 or index >= self.buf_size:
+            raise IndexError(f'Index must be in the range 0-{self.buf_size-1}')
+        return self._buf[self._back_index - index]

@@ -18,10 +18,10 @@ sys.path.insert(0, os.path.abspath('..'))  # Source code dir relative to this fi
 
 project = 'VideoLIB'
 author = 'Abhinau Kumar'
-copyright = '2023, Abhinau Kumar Venkataramanan'
+copyright = '2024, Abhinau Kumar Venkataramanan'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.3'
+release = '0.2.0'
 
 # -- General configuration ---------------------------------------------------
 
