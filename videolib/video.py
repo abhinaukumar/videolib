@@ -464,9 +464,6 @@ class Video:
         if self.mode != 'r':
             raise ValueError('Reset only defined for Video in \'r\' mode.')
         self._frames_loaded_from_next = 0
-        if self.format == 'encoded':
-            self._file_object = skvideo.io.FFmpegReader(self.file_path)
-            self._file_frame_generator = self._file_object.nextFrame()
 
     def __iter__(self):
         return self
