@@ -1,6 +1,6 @@
 import os
 import subprocess
-import time
+import datetime
 
 from typing import Any, BinaryIO, Dict, Tuple, Optional, Union
 from warnings import warn
@@ -363,8 +363,8 @@ class Video:
             self._file_object: BinaryIO = open(file_path, '{}b'.format(self.mode))
         elif self.format == 'encoded':
             if self.mode == 'r':
-                self._decode_encoded_video(file_path)
-                self._file_object: BinaryIO = open(file_path, 'rb')
+                self._decode_encoded_video()
+                self._file_object: BinaryIO = open(self._temp_path, 'rb')
             elif self.mode == 'w':
                 self._file_object = skvideo.io.FFmpegWriter(file_path, outputdict=self.out_dict)
         elif 'image' in self.format:
@@ -379,17 +379,13 @@ class Video:
         self.num_frames: int = 0
         if self.mode == 'r':
             self._frames_loaded_from_next: int = 0
-            if self.format == 'raw':
-                self._file_object.seek(0, os.SEEK_END)
-                size_in_bytes = self._file_object.tell()
-                self.num_frames = size_in_bytes // int(self.width * self.height * self._frame_stride)
-                self._file_object.seek(0)
-                if self.width is None or self.height is None:
-                    raise ValueError('Must set values of width and height when reading a raw video.')
-            elif self.format == 'encoded':
-                (self.num_frames, height, width, _) = self._file_object.getShape()  # N x H x W x C
-                self._file_frame_generator = self._file_object.nextFrame()
-            else:
+            self._file_object.seek(0, os.SEEK_END)
+            size_in_bytes = self._file_object.tell()
+            self.num_frames = size_in_bytes // int(self.width * self.height * self._frame_stride)
+            self._file_object.seek(0)
+            if self.width is None or self.height is None:
+                raise ValueError('Must set values of width and height when reading a raw video.')
+            elif 'image' in self.format:
                 self.num_frames = 1
                 self.width = self._img.width
                 self.height = self._img.height
@@ -415,8 +411,7 @@ class Video:
         return scale_dict.get(self.bit_depth, 1) if self._range == 'Limited' else 1
 
     def _decode_encoded_video(self):
-        creation_time = time.localtime()
-        self._temp_path = os.path.join(self.TEMP_DIR, f'EncodedReader_temp_{self.file_path.replace("/", "_")}_{str(creation_time)}.yuv')
+        self._temp_path = os.path.join(TEMP_DIR, f'EncodedReader_temp_{self.file_path.replace("/", "_")}_' + '{0:%Y_%m_%d_%H_%M_%S}'.format(datetime.datetime.now()) + '.yuv')
         json_string = subprocess.check_output(['mediainfo', '--Output=JSON', self.file_path], stdin=subprocess.DEVNULL)
         d = json.loads(json_string)
         v_track = None
@@ -454,10 +449,10 @@ class Video:
         cmd = [
             'ffmpeg',
             '-i', self.file_path,
+            '-c:v', 'rawvideo',
             '-pix_fmt', pix_fmt,
-            '-vcodec', 'rawvideo',
             '-y',
-            self.temp_path
+            self._temp_path
         ]
 
         subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -635,3 +630,5 @@ class Video:
     def __exit__(self, exc_type, exc_value, traceback):
         if self.format in ['raw', 'encoded']:
             self.close()
+        if self.format == 'encoded' and self.mode == 'r':
+            os.remove(self._temp_path)
