@@ -496,8 +496,6 @@ class Video:
         '''
         if self.mode == 'w':
             raise OSError('Cannot get frame in write mode.')
-        if self.format == 'encoded' and frame_ind != self._frames_loaded_from_next:
-            raise ValueError('Encoded videos must be read sequentially.')
 
         frame = Frame(self.standard, self.quantization, self.dither)
         if self.format in ['raw', 'encoded']:
@@ -618,6 +616,8 @@ class Video:
         Close the file object associated with the video.
         '''
         self._file_object.close()
+        if self.format == 'encoded' and self.mode == 'r':
+            os.remove(self._temp_path)
 
     # Default behavior when entering 'with' statement
     def __enter__(self):
@@ -627,5 +627,4 @@ class Video:
     def __exit__(self, exc_type, exc_value, traceback):
         if self.format in ['raw', 'encoded']:
             self.close()
-        if self.format == 'encoded' and self.mode == 'r':
-            os.remove(self._temp_path)
+
