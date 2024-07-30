@@ -335,7 +335,7 @@ class Video:
                 format = 'encoded'
             elif ext in ['jpg', 'png', 'bmp', 'tiff']:
                 format = 'sdr_image'
-                if self.standard not in standards.low_bitdepth_standards:
+                if self.standard not in standards.standards_8bit:
                     raise ValueError('Extension \'{ext}\' can only be used with 8-bit standards.')
             elif ext in ['hdr', 'exr']:
                 format = 'hdr_image'
